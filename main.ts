@@ -37,17 +37,17 @@ export default class AIWritingHelper extends Plugin {
     // Commands (also useful for hotkeys)
     this.addCommand({
       id: "aiwh-dictionary",
-      name: "Dictionary: Define selection (context-aware)",
+      name: "Define",
       editorCallback: (editor) => this.runTask(TaskKind.Dictionary, editor),
     });
     this.addCommand({
       id: "aiwh-correction",
-      name: "Check & suggest corrected English (non-destructive)",
+      name: "Correct",
       editorCallback: (editor) => this.runTask(TaskKind.Correction, editor),
     });
     this.addCommand({
       id: "aiwh-explain",
-      name: "Explain selection in document context",
+      name: "Explain",
       editorCallback: (editor) => this.runTask(TaskKind.Explanation, editor),
     });
 
@@ -59,19 +59,19 @@ export default class AIWritingHelper extends Plugin {
 
         menu.addItem((item) =>
           item
-            .setTitle("AI: Dictionary (context-aware)")
+            .setTitle("Define")
             .setIcon("book")
             .onClick(() => this.runTask(TaskKind.Dictionary, editor))
         );
         menu.addItem((item) =>
           item
-            .setTitle("AI: Check & Correct (non-destructive)")
+            .setTitle("Correct")
             .setIcon("check")
             .onClick(() => this.runTask(TaskKind.Correction, editor))
         );
         menu.addItem((item) =>
           item
-            .setTitle("AI: Explain in context")
+            .setTitle("Explain")
             .setIcon("help-circle")
             .onClick(() => this.runTask(TaskKind.Explanation, editor))
         );
@@ -106,8 +106,8 @@ export default class AIWritingHelper extends Plugin {
     const fromPos = editor.posToOffset(cursorFrom);
     const toPos = editor.posToOffset(cursorTo);
 
-    const LEFT = Math.max(0, fromPos - 1200);
-    const RIGHT = Math.min(doc.length, toPos + 1200);
+    const LEFT = Math.max(0, fromPos - 40);
+    const RIGHT = Math.min(doc.length, toPos + 40);
     const leftCtx = doc.slice(LEFT, fromPos);
     const rightCtx = doc.slice(toPos, RIGHT);
     const surrounding = `${leftCtx}[${selection}]${rightCtx}`;
@@ -199,6 +199,15 @@ export default class AIWritingHelper extends Plugin {
       if (ev.key === "Escape") this.destroyPopover();
     };
     window.addEventListener("keydown", esc, { once: true });
+    const outsideClick = (ev: MouseEvent) => {
+        if (!container.contains(ev.target as Node)) {
+            this.destroyPopover();
+            document.removeEventListener("mousedown", outsideClick);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener("mousedown", outsideClick);
+    }, 0);
   }
 
   async updatePopoverMarkdown(markdown: string) {
@@ -318,9 +327,9 @@ function buildPrompt(
   rightCtx: string,
   fullDoc: string
 ): string {
-  const L = trimForTokens(leftCtx, 2000);
-  const R = trimForTokens(rightCtx, 2000);
-  const DOC = trimForTokens(fullDoc, 6000);
+  const L = trimForTokens(leftCtx, 50);
+  const R = trimForTokens(rightCtx, 50);
+  const DOC = trimForTokens(fullDoc, 2000);
 
   if (kind === TaskKind.Dictionary) {
     // Use your desired format for the dictionary (Markdown-safe)
@@ -329,9 +338,8 @@ function buildPrompt(
       `Selection:\n"""${selection}"""`,
       `Left context:\n"""${L}"""`,
       `Right context:\n"""${R}"""`,
-      `Document context (truncated):\n"""${DOC}"""`,
       `Output strictly in this Markdown format (1-line fields):`,
-      `[Word(s)] (v./n./etc.) [Phonetic alphabet pronunciation] ([English alphabet pronunciation help])`,
+      `***[Word(s)]*** (v./n./etc.) [Phonetic alphabet pronunciation American US English] ([English alphabet pronunciation help American US English])`,
       `***Definition:*** [1-line definition]`,
       `***Synonyms:*** [Up to 3 synonyms, separated by commas]`,
       `***Etymology:*** [1-line explanation of etymology]`,
@@ -341,11 +349,10 @@ function buildPrompt(
 
   if (kind === TaskKind.Correction) {
     return [
-      `Task: Check whether the selection is correct English. Provide only a corrected version (non-destructive) and a 1-2 bullet rationale.`,
+      `Task: Check whether the selection is correct English. Provide only a corrected version (non-destructive) and a 1-2 bullet rationale. If it's already correct and high quality, just say "Correct.".`,
       `Selection:\n"""${selection}"""`,
       `Left context:\n"""${L}"""`,
       `Right context:\n"""${R}"""`,
-      `Document context (truncated):\n"""${DOC}"""`,
       `Output Markdown like:\n`,
       `**Corrected:** <single best corrected version>`,
       `- Reason 1`,

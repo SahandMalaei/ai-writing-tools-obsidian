@@ -41,17 +41,17 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
     await this.loadSettings();
     this.addCommand({
       id: "aiwh-dictionary",
-      name: "Dictionary: Define selection (context-aware)",
+      name: "Define",
       editorCallback: (editor) => this.runTask("Dictionary" /* Dictionary */, editor)
     });
     this.addCommand({
       id: "aiwh-correction",
-      name: "Check & suggest corrected English (non-destructive)",
+      name: "Correct",
       editorCallback: (editor) => this.runTask("Correction" /* Correction */, editor)
     });
     this.addCommand({
       id: "aiwh-explain",
-      name: "Explain selection in document context",
+      name: "Explain",
       editorCallback: (editor) => this.runTask("Explanation" /* Explanation */, editor)
     });
     this.registerEvent(
@@ -59,13 +59,13 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
         const hasSelection = !!editor.getSelection();
         if (!hasSelection) return;
         menu.addItem(
-          (item) => item.setTitle("AI: Dictionary (context-aware)").setIcon("book").onClick(() => this.runTask("Dictionary" /* Dictionary */, editor))
+          (item) => item.setTitle("Define").setIcon("book").onClick(() => this.runTask("Dictionary" /* Dictionary */, editor))
         );
         menu.addItem(
-          (item) => item.setTitle("AI: Check & Correct (non-destructive)").setIcon("check").onClick(() => this.runTask("Correction" /* Correction */, editor))
+          (item) => item.setTitle("Correct").setIcon("check").onClick(() => this.runTask("Correction" /* Correction */, editor))
         );
         menu.addItem(
-          (item) => item.setTitle("AI: Explain in context").setIcon("help-circle").onClick(() => this.runTask("Explanation" /* Explanation */, editor))
+          (item) => item.setTitle("Explain").setIcon("help-circle").onClick(() => this.runTask("Explanation" /* Explanation */, editor))
         );
       })
     );
@@ -90,8 +90,8 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
     const cursorTo = editor.getCursor("to");
     const fromPos = editor.posToOffset(cursorFrom);
     const toPos = editor.posToOffset(cursorTo);
-    const LEFT = Math.max(0, fromPos - 1200);
-    const RIGHT = Math.min(doc.length, toPos + 1200);
+    const LEFT = Math.max(0, fromPos - 40);
+    const RIGHT = Math.min(doc.length, toPos + 40);
     const leftCtx = doc.slice(LEFT, fromPos);
     const rightCtx = doc.slice(toPos, RIGHT);
     const surrounding = `${leftCtx}[${selection}]${rightCtx}`;
@@ -167,6 +167,15 @@ Check API key, model name, or rate limits.`
       if (ev.key === "Escape") this.destroyPopover();
     };
     window.addEventListener("keydown", esc, { once: true });
+    const outsideClick = (ev) => {
+      if (!container.contains(ev.target)) {
+        this.destroyPopover();
+        document.removeEventListener("mousedown", outsideClick);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener("mousedown", outsideClick);
+    }, 0);
   }
   async updatePopoverMarkdown(markdown) {
     if (!this.popoverEl || !this.contentEl) return;
@@ -236,9 +245,9 @@ function trimForTokens(s, maxChars) {
   return s.slice(0, half) + "\n\u2026\n" + s.slice(s.length - half);
 }
 function buildPrompt(kind, selection, leftCtx, rightCtx, fullDoc) {
-  const L = trimForTokens(leftCtx, 2e3);
-  const R = trimForTokens(rightCtx, 2e3);
-  const DOC = trimForTokens(fullDoc, 6e3);
+  const L = trimForTokens(leftCtx, 50);
+  const R = trimForTokens(rightCtx, 50);
+  const DOC = trimForTokens(fullDoc, 2e3);
   if (kind === "Dictionary" /* Dictionary */) {
     return [
       `Task: Define the selected text as a context-aware dictionary entry.`,
@@ -248,10 +257,8 @@ function buildPrompt(kind, selection, leftCtx, rightCtx, fullDoc) {
 """${L}"""`,
       `Right context:
 """${R}"""`,
-      `Document context (truncated):
-"""${DOC}"""`,
       `Output strictly in this Markdown format (1-line fields):`,
-      `[Word(s)] (v./n./etc.) [Phonetic alphabet pronunciation] ([English alphabet pronunciation help])`,
+      `***[Word(s)]*** (v./n./etc.) [Phonetic alphabet pronunciation American US English] ([English alphabet pronunciation help American US English])`,
       `***Definition:*** [1-line definition]`,
       `***Synonyms:*** [Up to 3 synonyms, separated by commas]`,
       `***Etymology:*** [1-line explanation of etymology]`,
@@ -260,15 +267,13 @@ function buildPrompt(kind, selection, leftCtx, rightCtx, fullDoc) {
   }
   if (kind === "Correction" /* Correction */) {
     return [
-      `Task: Check whether the selection is correct English. Provide only a corrected version (non-destructive) and a 1-2 bullet rationale.`,
+      `Task: Check whether the selection is correct English. Provide only a corrected version (non-destructive) and a 1-2 bullet rationale. If it's already correct and high quality, just say "Correct.".`,
       `Selection:
 """${selection}"""`,
       `Left context:
 """${L}"""`,
       `Right context:
 """${R}"""`,
-      `Document context (truncated):
-"""${DOC}"""`,
       `Output Markdown like:
 `,
       `**Corrected:** <single best corrected version>`,
