@@ -1,0 +1,30 @@
+.aiwh-popover {
+  position: fixed;
+  max-width: 520px;
+  z-index: 9999;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: var(--shadow-s);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.aiwh-popover .aiwh-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  opacity: 0.8;
+  font-size: 12px;
+}
+.aiwh-popover .aiwh-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.aiwh-popover .aiwh-actions button {
+  font-size: 12px;
+}
+.aiwh-error {
+  color: var(--text-error);
+}
