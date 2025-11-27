@@ -1,7 +1,7 @@
 {
   "id": "ai-writing-tools",
   "name": "AI Writing Tools",
-  "version": "1.5.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.0",
   "description": "AI-powered proofreader and context-aware dictionary for selected text.",
   "author": "Sahand Malaei",

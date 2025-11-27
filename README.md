@@ -8,6 +8,8 @@ Key benefits of the `Define` and `Correct` tools:
 3. Corrections are minimal and explain the rationale; tone is preserved.
 4. Mobile toolbar buttons include dedicated options for `Correct` and `Define`.
 
+![Demo](demo.gif)
+
 ## How to Use
 
 1. Download [the latest release of this plugin](https://github.com/SahandMalaei/ai-writing-tools-obsidian/releases/latest) and extract it into your vault at `.obsidian/plugins/ai-writing-tools` (create the folder if it does not exist).
