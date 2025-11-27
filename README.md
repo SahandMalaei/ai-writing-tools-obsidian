@@ -10,7 +10,7 @@ Key benefits of the `Define` and `Correct` tools:
 
 ## How to Use
 
-1. Download the (latest release of this plugin)[https://github.com/SahandMalaei/ai-writing-tools-obsidian/releases/latest] and extract it into your vault at `.obsidian/plugins/ai-writing-tools` (create the folder if it does not exist).
+1. Download [the latest release of this plugin](https://github.com/SahandMalaei/ai-writing-tools-obsidian/releases/latest) and extract it into your vault at `.obsidian/plugins/ai-writing-tools` (create the folder if it does not exist).
 2. In Obsidian, enable **Settings → Community Plugins → AI Writing Tools**.
 3. Open **Settings → AI Writing Tools**:
    - Paste your OpenRouter (or compatible) API key.

@@ -1,7 +1,7 @@
 {
-  "name": "ai-writing-helper",
+  "name": "ai-writing-tools",
   "version": "1.5.0",
-  "description": "Context-aware Dictionary and Correction for selected text via OpenRouter.",
+  "description": "AI-powered proofreader and context-aware dictionary for selected text.",
   "main": "main.js",
   "scripts": {
     "build": "esbuild main.ts --bundle --outfile=main.js --format=cjs --platform=node --external:obsidian --sourcemap",

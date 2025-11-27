@@ -3,8 +3,8 @@
   "name": "AI Writing Tools",
   "version": "1.5.0",
   "minAppVersion": "1.5.0",
-  "description": "Context-aware Dictionary and Correction for selected text via OpenRouter.",
-  "author": "You",
+  "description": "AI-powered proofreader and context-aware dictionary for selected text.",
+  "author": "Sahand Malaei",
   "authorUrl": "https://sahandmalaei.com",
   "isDesktopOnly": false
 }
