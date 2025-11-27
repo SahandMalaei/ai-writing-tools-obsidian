@@ -14,12 +14,14 @@ type AIWHSettings = {
   openrouterApiKey: string;
   modelDictionary: string;
   modelCorrection: string;
+  apiEndpoint: string;
 };
 
 const DEFAULT_SETTINGS: AIWHSettings = {
   openrouterApiKey: "",
   modelDictionary: "google/gemini-2.5-flash-lite",
-  modelCorrection: "google/gemini-2.5-flash-lite"
+  modelCorrection: "google/gemini-2.5-flash",
+  apiEndpoint: "https://openrouter.ai/api/v1/chat/completions"
 };
 
 enum TaskKind {
@@ -115,6 +117,7 @@ export default class AIWritingHelper extends Plugin {
         model,
         system: SYSTEM_PROMPT,
         user: prompt,
+        endpoint: this.settings.apiEndpoint || DEFAULT_SETTINGS.apiEndpoint,
       });
 
       await this.updatePopoverMarkdown(md);
@@ -276,7 +279,20 @@ class AIWHSettingTab extends PluginSettingTab {
     containerEl.createEl("h2", { text: "AI Writing Helper - Settings" });
 
     new Setting(containerEl)
-      .setName("OpenRouter API Key")
+      .setName("API Endpoint")
+      .setDesc("Defaults to the OpenRouter chat completions endpoint.")
+      .addText((text) =>
+        text
+          .setPlaceholder(DEFAULT_SETTINGS.apiEndpoint)
+          .setValue(this.plugin.settings.apiEndpoint)
+          .onChange(async (value) => {
+            this.plugin.settings.apiEndpoint = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("API Key")
       .setDesc("Stored locally in this vault.")
       .addText((text) =>
         text
@@ -303,7 +319,7 @@ class AIWHSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Model: Correction")
-      .setDesc("Default: google/gemini-2.5-flash-lite")
+      .setDesc("Default: google/gemini-2.5-flash")
       .addText((text) =>
         text
           .setPlaceholder(DEFAULT_SETTINGS.modelCorrection)
@@ -374,6 +390,7 @@ async function callOpenRouterChat(opts: {
   model: string;
   system: string;
   user: string;
+  endpoint: string;
 }): Promise<string> {
   const body = {
     model: opts.model,
@@ -385,7 +402,9 @@ async function callOpenRouterChat(opts: {
     max_tokens: 600
   };
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const endpoint = opts.endpoint?.trim() || DEFAULT_SETTINGS.apiEndpoint;
+
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

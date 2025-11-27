@@ -27,7 +27,8 @@ var import_obsidian = require("obsidian");
 var DEFAULT_SETTINGS = {
   openrouterApiKey: "",
   modelDictionary: "google/gemini-2.5-flash-lite",
-  modelCorrection: "google/gemini-2.5-flash-lite"
+  modelCorrection: "google/gemini-2.5-flash",
+  apiEndpoint: "https://openrouter.ai/api/v1/chat/completions"
 };
 var ICON_DEFINE = "aiwh-define";
 var ICON_CORRECT = "aiwh-correct";
@@ -99,7 +100,8 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
         apiKey: this.settings.openrouterApiKey,
         model,
         system: SYSTEM_PROMPT,
-        user: prompt
+        user: prompt,
+        endpoint: this.settings.apiEndpoint || DEFAULT_SETTINGS.apiEndpoint
       });
       await this.updatePopoverMarkdown(md);
     } catch (e) {
@@ -227,7 +229,13 @@ var AIWHSettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "AI Writing Helper - Settings" });
-    new import_obsidian.Setting(containerEl).setName("OpenRouter API Key").setDesc("Stored locally in this vault.").addText(
+    new import_obsidian.Setting(containerEl).setName("API Endpoint").setDesc("Defaults to the OpenRouter chat completions endpoint.").addText(
+      (text) => text.setPlaceholder(DEFAULT_SETTINGS.apiEndpoint).setValue(this.plugin.settings.apiEndpoint).onChange(async (value) => {
+        this.plugin.settings.apiEndpoint = value.trim();
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("API Key").setDesc("Stored locally in this vault.").addText(
       (text) => text.setPlaceholder("sk-or-v1-...").setValue(this.plugin.settings.openrouterApiKey).onChange(async (value) => {
         this.plugin.settings.openrouterApiKey = value.trim();
         await this.plugin.saveSettings();
@@ -239,7 +247,7 @@ var AIWHSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Model: Correction").setDesc("Default: google/gemini-2.5-flash-lite").addText(
+    new import_obsidian.Setting(containerEl).setName("Model: Correction").setDesc("Default: google/gemini-2.5-flash").addText(
       (text) => text.setPlaceholder(DEFAULT_SETTINGS.modelCorrection).setValue(this.plugin.settings.modelCorrection).onChange(async (value) => {
         this.plugin.settings.modelCorrection = value.trim();
         await this.plugin.saveSettings();
@@ -303,7 +311,8 @@ async function callOpenRouterChat(opts) {
     temperature: 0.2,
     max_tokens: 600
   };
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const endpoint = opts.endpoint?.trim() || DEFAULT_SETTINGS.apiEndpoint;
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
