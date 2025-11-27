@@ -1,5 +1,6 @@
 import {
   App,
+  addIcon,
   Editor,
   MarkdownRenderer,
   Notice,
@@ -12,43 +13,41 @@ type AIWHSettings = {
   openrouterApiKey: string;
   modelDictionary: string;
   modelCorrection: string;
-  modelExplanation: string;
 };
 
 const DEFAULT_SETTINGS: AIWHSettings = {
   openrouterApiKey: "",
-  modelDictionary: "google/gemini-2.5-flash-lite-002",
-  modelCorrection: "google/gemini-2.5-flash-lite-002",
-  modelExplanation: "google/gemini-2.5-flash-lite-002"
+  modelDictionary: "google/gemini-2.5-flash-lite",
+  modelCorrection: "google/gemini-2.5-flash-lite"
 };
 
 enum TaskKind {
   Dictionary = "Dictionary",
   Correction = "Correction",
-  Explanation = "Explanation",
 }
+
+const ICON_DEFINE = "aiwh-define";
+const ICON_CORRECT = "aiwh-correct";
 
 export default class AIWritingHelper extends Plugin {
   settings: AIWHSettings;
 
   async onload() {
     await this.loadSettings();
+    this.registerIcons();
 
     // Commands (also useful for hotkeys)
     this.addCommand({
       id: "aiwh-dictionary",
       name: "Define",
+      icon: ICON_DEFINE,
       editorCallback: (editor) => this.runTask(TaskKind.Dictionary, editor),
     });
     this.addCommand({
       id: "aiwh-correction",
       name: "Correct",
+      icon: ICON_CORRECT,
       editorCallback: (editor) => this.runTask(TaskKind.Correction, editor),
-    });
-    this.addCommand({
-      id: "aiwh-explain",
-      name: "Explain",
-      editorCallback: (editor) => this.runTask(TaskKind.Explanation, editor),
     });
 
     // Context (right-click) editor menu
@@ -60,20 +59,14 @@ export default class AIWritingHelper extends Plugin {
         menu.addItem((item) =>
           item
             .setTitle("Define")
-            .setIcon("book")
+            .setIcon(ICON_DEFINE)
             .onClick(() => this.runTask(TaskKind.Dictionary, editor))
         );
         menu.addItem((item) =>
           item
             .setTitle("Correct")
-            .setIcon("check")
+            .setIcon(ICON_CORRECT)
             .onClick(() => this.runTask(TaskKind.Correction, editor))
-        );
-        menu.addItem((item) =>
-          item
-            .setTitle("Explain")
-            .setIcon("help-circle")
-            .onClick(() => this.runTask(TaskKind.Explanation, editor))
         );
       })
     );
@@ -110,9 +103,8 @@ export default class AIWritingHelper extends Plugin {
     const RIGHT = Math.min(doc.length, toPos + 40);
     const leftCtx = doc.slice(LEFT, fromPos);
     const rightCtx = doc.slice(toPos, RIGHT);
-    const surrounding = `${leftCtx}[${selection}]${rightCtx}`;
 
-    this.showPopoverAtSelection("Working…");
+    this.showPopoverAtSelection("Working...");
 
     try {
       const model = this.getModelFor(kind);
@@ -139,9 +131,8 @@ export default class AIWritingHelper extends Plugin {
         return this.settings.modelDictionary || DEFAULT_SETTINGS.modelDictionary;
       case TaskKind.Correction:
         return this.settings.modelCorrection || DEFAULT_SETTINGS.modelCorrection;
-      case TaskKind.Explanation:
-        return this.settings.modelExplanation || DEFAULT_SETTINGS.modelExplanation;
     }
+    return DEFAULT_SETTINGS.modelDictionary;
   }
 
   // --- Popup UI ---
@@ -237,6 +228,17 @@ export default class AIWritingHelper extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
+
+  registerIcons() {
+    addIcon(
+      ICON_DEFINE,
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"/></svg>`
+    );
+    addIcon(
+      ICON_CORRECT,
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>`
+    );
+  }
 }
 
 // --- Settings tab ---
@@ -253,7 +255,7 @@ class AIWHSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "AI Writing Helper – Settings" });
+    containerEl.createEl("h2", { text: "AI Writing Helper - Settings" });
 
     new Setting(containerEl)
       .setName("OpenRouter API Key")
@@ -293,19 +295,6 @@ class AIWHSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
-
-    new Setting(containerEl)
-      .setName("Model: Explanation")
-      .setDesc("Default: google/gemini-2.5-flash-lite")
-      .addText((text) =>
-        text
-          .setPlaceholder(DEFAULT_SETTINGS.modelExplanation)
-          .setValue(this.plugin.settings.modelExplanation)
-          .onChange(async (value) => {
-            this.plugin.settings.modelExplanation = value.trim();
-            await this.plugin.saveSettings();
-          })
-      );
   }
 }
 
@@ -317,7 +306,7 @@ Write Markdown. Never use HTML. Prefer short, tidy outputs.`;
 function trimForTokens(s: string, maxChars: number) {
   if (s.length <= maxChars) return s;
   const half = Math.floor(maxChars / 2);
-  return s.slice(0, half) + "\n…\n" + s.slice(s.length - half);
+  return s.slice(0, half) + "\n...\n" + s.slice(s.length - half);
 }
 
 function buildPrompt(
@@ -325,14 +314,12 @@ function buildPrompt(
   selection: string,
   leftCtx: string,
   rightCtx: string,
-  fullDoc: string
+  _fullDoc: string
 ): string {
   const L = trimForTokens(leftCtx, 50);
   const R = trimForTokens(rightCtx, 50);
-  const DOC = trimForTokens(fullDoc, 2000);
 
   if (kind === TaskKind.Dictionary) {
-    // Use your desired format for the dictionary (Markdown-safe)
     return [
       `Task: Define the selected text as a context-aware dictionary entry.`,
       `Selection:\n"""${selection}"""`,
@@ -343,7 +330,7 @@ function buildPrompt(
       `***Definition:*** [1-line definition]`,
       `***Synonyms:*** [Up to 3 synonyms, separated by commas]`,
       `***Etymology:*** [1-line explanation of etymology]`,
-      `If POS/pronunciation are unclear, make your best brief guess (or use “—”).`
+      `If POS/pronunciation are unclear, make your best brief guess (or use "--").`
     ].join("\n\n");
   }
 
@@ -361,18 +348,7 @@ function buildPrompt(
     ].join("\n\n");
   }
 
-  // Explanation
-  return [
-    `Task: Explain the meaning of the selected text in the context of this document. Keep it concise and actionable.`,
-    `Selection:\n"""${selection}"""`,
-    `Left context:\n"""${L}"""`,
-    `Right context:\n"""${R}"""`,
-    `Document context (truncated):\n"""${DOC}"""`,
-    `Output Markdown with short sections:\n`,
-    `**What it means**: <1–2 sentences>`,
-    `**Why it’s written this way**: <1–2 bullets>`,
-    `**Possible alternatives**: <up to 3 short options in bullets>`,
-  ].join("\n\n");
+  throw new Error("Unsupported task kind");
 }
 
 async function callOpenRouterChat(opts: {

@@ -1,9 +1,9 @@
 {
   "id": "ai-writing-tools",
   "name": "AI Writing Tools",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "minAppVersion": "1.5.0",
-  "description": "Context-aware Dictionary, Correction, and Explanation for selected text via OpenRouter.",
+  "description": "Context-aware Dictionary and Correction for selected text via OpenRouter.",
   "author": "You",
   "authorUrl": "https://sahandmalaei.com",
   "isDesktopOnly": false

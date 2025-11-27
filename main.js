@@ -26,10 +26,11 @@ module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
 var DEFAULT_SETTINGS = {
   openrouterApiKey: "",
-  modelDictionary: "google/gemini-2.5-flash-lite-002",
-  modelCorrection: "google/gemini-2.5-flash-lite-002",
-  modelExplanation: "google/gemini-2.5-flash-lite-002"
+  modelDictionary: "google/gemini-2.5-flash-lite",
+  modelCorrection: "google/gemini-2.5-flash-lite"
 };
+var ICON_DEFINE = "aiwh-define";
+var ICON_CORRECT = "aiwh-correct";
 var AIWritingHelper = class extends import_obsidian.Plugin {
   constructor() {
     super(...arguments);
@@ -39,33 +40,28 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
   }
   async onload() {
     await this.loadSettings();
+    this.registerIcons();
     this.addCommand({
       id: "aiwh-dictionary",
       name: "Define",
+      icon: ICON_DEFINE,
       editorCallback: (editor) => this.runTask("Dictionary" /* Dictionary */, editor)
     });
     this.addCommand({
       id: "aiwh-correction",
       name: "Correct",
+      icon: ICON_CORRECT,
       editorCallback: (editor) => this.runTask("Correction" /* Correction */, editor)
-    });
-    this.addCommand({
-      id: "aiwh-explain",
-      name: "Explain",
-      editorCallback: (editor) => this.runTask("Explanation" /* Explanation */, editor)
     });
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor) => {
         const hasSelection = !!editor.getSelection();
         if (!hasSelection) return;
         menu.addItem(
-          (item) => item.setTitle("Define").setIcon("book").onClick(() => this.runTask("Dictionary" /* Dictionary */, editor))
+          (item) => item.setTitle("Define").setIcon(ICON_DEFINE).onClick(() => this.runTask("Dictionary" /* Dictionary */, editor))
         );
         menu.addItem(
-          (item) => item.setTitle("Correct").setIcon("check").onClick(() => this.runTask("Correction" /* Correction */, editor))
-        );
-        menu.addItem(
-          (item) => item.setTitle("Explain").setIcon("help-circle").onClick(() => this.runTask("Explanation" /* Explanation */, editor))
+          (item) => item.setTitle("Correct").setIcon(ICON_CORRECT).onClick(() => this.runTask("Correction" /* Correction */, editor))
         );
       })
     );
@@ -94,8 +90,7 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
     const RIGHT = Math.min(doc.length, toPos + 40);
     const leftCtx = doc.slice(LEFT, fromPos);
     const rightCtx = doc.slice(toPos, RIGHT);
-    const surrounding = `${leftCtx}[${selection}]${rightCtx}`;
-    this.showPopoverAtSelection("Working\u2026");
+    this.showPopoverAtSelection("Working...");
     try {
       const model = this.getModelFor(kind);
       const prompt = buildPrompt(kind, selection, leftCtx, rightCtx, doc);
@@ -125,9 +120,8 @@ Check API key, model name, or rate limits.`
         return this.settings.modelDictionary || DEFAULT_SETTINGS.modelDictionary;
       case "Correction" /* Correction */:
         return this.settings.modelCorrection || DEFAULT_SETTINGS.modelCorrection;
-      case "Explanation" /* Explanation */:
-        return this.settings.modelExplanation || DEFAULT_SETTINGS.modelExplanation;
     }
+    return DEFAULT_SETTINGS.modelDictionary;
   }
   showPopoverAtSelection(initialMarkdown) {
     this.destroyPopover();
@@ -201,6 +195,16 @@ Check API key, model name, or rate limits.`
   async saveSettings() {
     await this.saveData(this.settings);
   }
+  registerIcons() {
+    (0, import_obsidian.addIcon)(
+      ICON_DEFINE,
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Z"/></svg>`
+    );
+    (0, import_obsidian.addIcon)(
+      ICON_CORRECT,
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>`
+    );
+  }
 };
 var AIWHSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
@@ -210,7 +214,7 @@ var AIWHSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "AI Writing Helper \u2013 Settings" });
+    containerEl.createEl("h2", { text: "AI Writing Helper - Settings" });
     new import_obsidian.Setting(containerEl).setName("OpenRouter API Key").setDesc("Stored locally in this vault.").addText(
       (text) => text.setPlaceholder("sk-or-v1-...").setValue(this.plugin.settings.openrouterApiKey).onChange(async (value) => {
         this.plugin.settings.openrouterApiKey = value.trim();
@@ -229,12 +233,6 @@ var AIWHSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Model: Explanation").setDesc("Default: google/gemini-2.5-flash-lite").addText(
-      (text) => text.setPlaceholder(DEFAULT_SETTINGS.modelExplanation).setValue(this.plugin.settings.modelExplanation).onChange(async (value) => {
-        this.plugin.settings.modelExplanation = value.trim();
-        await this.plugin.saveSettings();
-      })
-    );
   }
 };
 var SYSTEM_PROMPT = `You are a precise, concise English assistant for an Obsidian plugin.
@@ -242,12 +240,11 @@ Write Markdown. Never use HTML. Prefer short, tidy outputs.`;
 function trimForTokens(s, maxChars) {
   if (s.length <= maxChars) return s;
   const half = Math.floor(maxChars / 2);
-  return s.slice(0, half) + "\n\u2026\n" + s.slice(s.length - half);
+  return s.slice(0, half) + "\n...\n" + s.slice(s.length - half);
 }
-function buildPrompt(kind, selection, leftCtx, rightCtx, fullDoc) {
+function buildPrompt(kind, selection, leftCtx, rightCtx, _fullDoc) {
   const L = trimForTokens(leftCtx, 50);
   const R = trimForTokens(rightCtx, 50);
-  const DOC = trimForTokens(fullDoc, 2e3);
   if (kind === "Dictionary" /* Dictionary */) {
     return [
       `Task: Define the selected text as a context-aware dictionary entry.`,
@@ -262,7 +259,7 @@ function buildPrompt(kind, selection, leftCtx, rightCtx, fullDoc) {
       `***Definition:*** [1-line definition]`,
       `***Synonyms:*** [Up to 3 synonyms, separated by commas]`,
       `***Etymology:*** [1-line explanation of etymology]`,
-      `If POS/pronunciation are unclear, make your best brief guess (or use \u201C\u2014\u201D).`
+      `If POS/pronunciation are unclear, make your best brief guess (or use "--").`
     ].join("\n\n");
   }
   if (kind === "Correction" /* Correction */) {
@@ -282,22 +279,7 @@ function buildPrompt(kind, selection, leftCtx, rightCtx, fullDoc) {
       `Do not rewrite more than necessary. Keep tone and meaning.`
     ].join("\n\n");
   }
-  return [
-    `Task: Explain the meaning of the selected text in the context of this document. Keep it concise and actionable.`,
-    `Selection:
-"""${selection}"""`,
-    `Left context:
-"""${L}"""`,
-    `Right context:
-"""${R}"""`,
-    `Document context (truncated):
-"""${DOC}"""`,
-    `Output Markdown with short sections:
-`,
-    `**What it means**: <1\u20132 sentences>`,
-    `**Why it\u2019s written this way**: <1\u20132 bullets>`,
-    `**Possible alternatives**: <up to 3 short options in bullets>`
-  ].join("\n\n");
+  throw new Error("Unsupported task kind");
 }
 async function callOpenRouterChat(opts) {
   const body = {
