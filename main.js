@@ -37,6 +37,7 @@ var AIWritingHelper = class extends import_obsidian.Plugin {
     // --- Popup UI ---
     this.popoverEl = null;
     this.contentEl = null;
+    this.selectionRect = null;
   }
   async onload() {
     await this.loadSettings();
@@ -125,7 +126,7 @@ Check API key, model name, or rate limits.`
   }
   showPopoverAtSelection(initialMarkdown) {
     this.destroyPopover();
-    const rect = getSelectionRect();
+    this.selectionRect = getSelectionRect();
     const container = createDiv({ cls: "aiwh-popover" });
     const header = container.createDiv({ cls: "aiwh-header" });
     header.setText("AI Writing Helper");
@@ -144,18 +145,8 @@ Check API key, model name, or rate limits.`
       new import_obsidian.Notice("Copied");
     });
     closeBtn.addEventListener("click", () => this.destroyPopover());
-    const margin = 6;
-    const top = Math.min(
-      window.innerHeight - 20,
-      (rect?.bottom ?? 80) + margin
-    );
-    const left = Math.min(
-      window.innerWidth - 560,
-      Math.max(8, rect?.left ?? 80)
-    );
-    container.style.top = `${top}px`;
-    container.style.left = `${left}px`;
     document.body.appendChild(container);
+    this.repositionPopover();
     this.updatePopoverMarkdown(initialMarkdown);
     const esc = (ev) => {
       if (ev.key === "Escape") this.destroyPopover();
@@ -181,6 +172,7 @@ Check API key, model name, or rate limits.`
       "",
       this
     );
+    this.repositionPopover();
   }
   destroyPopover() {
     if (this.popoverEl) {
@@ -188,6 +180,26 @@ Check API key, model name, or rate limits.`
       this.popoverEl = null;
       this.contentEl = null;
     }
+  }
+  repositionPopover() {
+    if (!this.popoverEl) return;
+    const rect = this.selectionRect;
+    const viewport = window.visualViewport;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const viewportHeight = viewport?.height ?? window.innerHeight;
+    const margin = 8;
+    const safeBottom = import_obsidian.Platform.isMobile ? viewportHeight * 0.5 : 24;
+    this.popoverEl.style.maxWidth = "560px";
+    this.popoverEl.style.position = "fixed";
+    const desiredLeft = Math.max(margin, rect?.left ?? 80);
+    const desiredTop = (rect?.bottom ?? 80) + margin;
+    const { offsetWidth, offsetHeight } = this.popoverEl;
+    const maxLeft = Math.max(margin, viewportWidth - offsetWidth - margin);
+    const maxTop = Math.max(margin, viewportHeight - offsetHeight - safeBottom);
+    const left = Math.min(desiredLeft, maxLeft);
+    const top = Math.min(desiredTop, maxTop);
+    this.popoverEl.style.left = `${left}px`;
+    this.popoverEl.style.top = `${top}px`;
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());

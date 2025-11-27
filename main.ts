@@ -6,7 +6,8 @@ import {
   Notice,
   Plugin,
   PluginSettingTab,
-  Setting
+  Setting,
+  Platform
 } from "obsidian";
 
 type AIWHSettings = {
@@ -139,11 +140,12 @@ export default class AIWritingHelper extends Plugin {
 
   popoverEl: HTMLElement | null = null;
   contentEl: HTMLElement | null = null;
+  selectionRect: DOMRect | null = null;
 
   showPopoverAtSelection(initialMarkdown: string) {
     this.destroyPopover();
 
-    const rect = getSelectionRect();
+    this.selectionRect = getSelectionRect();
     const container = createDiv({ cls: "aiwh-popover" });
     const header = container.createDiv({ cls: "aiwh-header" });
     header.setText("AI Writing Helper");
@@ -169,21 +171,9 @@ export default class AIWritingHelper extends Plugin {
 
     closeBtn.addEventListener("click", () => this.destroyPopover());
 
-    // Position below selection, clamp within viewport
-    const margin = 6;
-    const top = Math.min(
-      window.innerHeight - 20,
-      (rect?.bottom ?? 80) + margin
-    );
-    const left = Math.min(
-      window.innerWidth - 560,
-      Math.max(8, (rect?.left ?? 80))
-    );
-    container.style.top = `${top}px`;
-    container.style.left = `${left}px`;
-
+    // Attach and position after render so dimensions are accurate
     document.body.appendChild(container);
-    // Initial render
+    this.repositionPopover();
     this.updatePopoverMarkdown(initialMarkdown);
     // Destroy on Escape
     const esc = (ev: KeyboardEvent) => {
@@ -211,6 +201,7 @@ export default class AIWritingHelper extends Plugin {
       "",
       this
     );
+    this.repositionPopover();
   }
 
   destroyPopover() {
@@ -219,6 +210,33 @@ export default class AIWritingHelper extends Plugin {
       this.popoverEl = null;
       this.contentEl = null;
     }
+  }
+
+  repositionPopover() {
+    if (!this.popoverEl) return;
+    const rect = this.selectionRect;
+    const viewport = window.visualViewport;
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const viewportHeight = viewport?.height ?? window.innerHeight;
+    const margin = 8;
+    const safeBottom = Platform.isMobile ? viewportHeight * 0.5 : 24;
+
+    // If not yet rendered, give it a max width so measurement is stable
+    this.popoverEl.style.maxWidth = "560px";
+    this.popoverEl.style.position = "fixed";
+
+    const desiredLeft = Math.max(margin, (rect?.left ?? 80));
+    const desiredTop = (rect?.bottom ?? 80) + margin;
+
+    const { offsetWidth, offsetHeight } = this.popoverEl;
+    const maxLeft = Math.max(margin, viewportWidth - offsetWidth - margin);
+    const maxTop = Math.max(margin, viewportHeight - offsetHeight - safeBottom);
+
+    const left = Math.min(desiredLeft, maxLeft);
+    const top = Math.min(desiredTop, maxTop);
+
+    this.popoverEl.style.left = `${left}px`;
+    this.popoverEl.style.top = `${top}px`;
   }
 
   async loadSettings() {
